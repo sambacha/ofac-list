@@ -1,0 +1,11 @@
+{
+  "name": "ofac-list",
+  "version": "0.1.0",
+  "description": "OFAC Lists exported",
+  "main": "index.js",
+  "scripts": {
+  },
+  "keywords": ["OFAC", "Sanction List", "Ethereum", "Bitcoin", "Cryptocurrency"],
+  "author": "SEE CONTRIBUTORS",
+  "license": "ISC"
+}
