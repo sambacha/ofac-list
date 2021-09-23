@@ -1,7 +1,6 @@
 'use strict';
 
 module.exports = [
-[
   "0x7F367cC41522cE07553e823bf3be79A889DEbe1B",
   "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
   "0x901bb9583b24d97e995513c6778dc6888ab6870e",
