@@ -1,4 +1,5 @@
-name: Generate OFAC sanctioned digital currency addresses lists each night at 0 UTC
+name: generate-lists
+# Generate OFAC sanctioned digital currency addresses lists each night at 0 UTC
 
 on:
   schedule:
@@ -6,6 +7,24 @@ on:
   push:
   pull_request:
 
+# ensure permissions are explicitly defined
+# by configuring one we disable the remaining permissions
+# see: https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions#jobsjob_idpermissions
+# permissions:
+#  contents: read
+
+# ensure multiple CI processes are not running analysis on contracts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request_target' && github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+
+env:
+  COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+  PULL_NUMBER: ${{ github.event.pull_request.number }}
+  RUN_ID: ${{ github.run_id }}
+  FORCE_COLOR: 2
+  
 jobs:
   generate-lists:
 
@@ -36,8 +55,17 @@ jobs:
         mv data/* .
         git add sanctioned_addresses_* -f
         git commit -m "Automatically updated lists: $(date)" -a || true
+        
+    - name: Get current date
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+    - name: Test with environment variables
+      run: echo $TAG_NAME - $RELEASE_NAME
+      env:
+        TAG_NAME: tag-${{ steps.date.outputs.date }}
+        RELEASE_NAME: v-${{ steps.date.outputs.date }}
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: lists
+        branch: ${{ steps.date.outputs.date }}
