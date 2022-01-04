@@ -65,7 +65,8 @@ jobs:
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git checkout -b $RELEASE_NAME
+        branch_date="$(date +'%Y-%m-%d')"
+        git switch -c ${branch_date}
         mv data/* .
         git add sanctioned_addresses_* -f
         git commit -m "Automatically updated lists: $(date)" -a || true
