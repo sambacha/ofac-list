@@ -1,14 +1,37 @@
-name: Generate OFAC sanctioned digital currency addresses lists each night at 0 UTC
+name: generate-lists
+# Generate OFAC sanctioned digital currency addresses lists each night at 0 UTC
 
 on:
   schedule:
     - cron: '0 0 * * *'
-  push:
   pull_request:
+    # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
+
+# ensure permissions are explicitly defined
+# by configuring one we disable the remaining permissions
+# see: https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions#jobsjob_idpermissions
+# permissions:
+#  contents: read
+
+# ensure multiple CI processes are not running analysis on contracts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request_target' && github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+  PULL_NUMBER: ${{ github.event.pull_request.number }}
+  RUN_ID: ${{ github.run_id }}
+  FORCE_COLOR: 2
+  
 jobs:
   generate-lists:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -28,16 +51,38 @@ jobs:
       run: |
         mkdir -p data
         python3 generate-address-list.py XBT ETH XMR LTC ZEC DASH BTG ETC BSV -f JSON TXT -path ./data
+    - name: Get current date
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+    - name: Test with environment variables
+      run: echo $TAG_NAME - $RELEASE_NAME
+      env:
+        TAG_NAME: tag-${{ steps.date.outputs.date }}
+        RELEASE_NAME: v-${{ steps.date.outputs.date }}
+        
     - name: Commit files
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git checkout lists
+        branch_date="$(date +'%Y-%m-%d')"
+        git switch -c ${branch_date}
         mv data/* .
         git add sanctioned_addresses_* -f
         git commit -m "Automatically updated lists: $(date)" -a || true
+        
+
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: lists
+        branch: ${{ steps.date.outputs.date }}
+        force: true
+        
+    - uses: actions/checkout@v2
+    - name: HandleIfFailure
+      if: failure()
+      uses: JasonEtco/create-an-issue@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        filename: .github/exception-job-failed.md
