@@ -6,6 +6,9 @@ on:
     - cron: '0 0 * * *'
   push:
   pull_request:
+    # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
 
 # ensure permissions are explicitly defined
 # by configuring one we disable the remaining permissions
