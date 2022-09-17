@@ -1,0 +1,1 @@
+module.exports = require('sanctioned_addresses_ETH.json');
