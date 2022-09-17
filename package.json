@@ -1,9 +1,18 @@
 {
   "name": "ofac-list",
-  "version": "0.1.1",
-  "description": "OFAC Lists exported",
-  "main": "index.js",
-  "scripts": {},
+  "version": "0.1.0",
+  "description": "OFAC List of Sanctioned Addresses",
+  "main": "./dist/index.cjs",          
+  "module": "./dist/index.module.js",
+  "type": "module",
+  "source": "src/index.js",
+  "unpkg": "./dist/index.umd.js",
+  "scripts": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sambacha/ofac-list.git"
+  },
   "keywords": [
     "OFAC",
     "Sanction List",
@@ -12,5 +21,9 @@
     "Cryptocurrency"
   ],
   "author": "SEE CONTRIBUTORS",
-  "license": "ISC"
+  "license": "UPL-1.0",
+  "bugs": {
+    "url": "https://github.com/sambacha/ofac-list/issues"
+  },
+  "homepage": "https://github.com/sambacha/ofac-list#readme"
 }
