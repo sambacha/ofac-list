@@ -1,0 +1,148 @@
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+env:
+  IS_NIGHTLY: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag_name: ${{ steps.release_info.outputs.tag_name }}
+      release_name: ${{ steps.release_info.outputs.release_name }}
+      changelog: ${{ steps.build_changelog.outputs.changelog }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Download the sdn_advanced.xml file
+        uses: wei/wget@v1
+        with:
+          args: https://www.treasury.gov/ofac/downloads/sanctions/1.0/sdn_advanced.xml
+      - name: Generate ETH JSON
+        run: |
+          mkdir -p data
+          python3 generate-address-list.py ETH-f JSON -path ./data
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+      - name: Test with environment variables
+        run: echo $TAG_NAME - $RELEASE_NAME
+        env:
+          TAG_NAME: tag-${{ steps.date.outputs.date }}
+          RELEASE_NAME: v-${{ steps.date.outputs.date }}
+          
+      - name: Commit files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          branch_date="$(date +'%Y-%m-%d')"
+          git switch -c ${branch_date}
+          mv data/* .
+          git add sanctioned_addresses_* -f
+          git commit -m "Automatically updated lists: $(date)" -a || true
+
+      - name: Compute release name and tag
+        id: release_info
+        run: |
+          if [[ $IS_NIGHTLY ]]; then
+            echo "::set-output name=tag_name::nightly-${GITHUB_SHA}"
+            echo "::set-output name=release_name::Nightly ($(date '+%Y-%m-%d'))"
+          else
+            echo "::set-output name=tag_name::${GITHUB_REF_NAME}"
+            echo "::set-output name=release_name::${GITHUB_REF_NAME}"
+          fi
+      # Creates a `nightly-SHA` tag for this specific nightly
+      # This tag is used for this specific nightly version's release
+      # which allows users to roll back. It is also used to build
+      # the changelog.
+      - name: Create build-specific nightly tag
+        if: ${{ env.IS_NIGHTLY }}
+        uses: actions/github-script@v5
+        env:
+          TAG_NAME: ${{ steps.release_info.outputs.tag_name }}
+        with:
+          script: |
+            const createTag = require('./.github/scripts/create-tag.js')
+            await createTag({ github, context }, process.env.TAG_NAME)
+
+
+      - name: Build npm pkg
+        id: npm
+        env:
+          PLATFORM_NAME: ${{ matrix.job.platform }}
+          TARGET: ${{ matrix.job.target }}
+          VERSION_NAME: ${{ (env.IS_NIGHTLY && 'nightly') || needs.prepare.outputs.tag_name }}
+        run: |
+          sudo apt-get -y install help2man
+          help2man -N ./target/${TARGET}/release/forge > forge.1
+          help2man -N ./target/${TARGET}/release/cast > cast.1
+          help2man -N ./target/${TARGET}/release/anvil > anvil.1
+          gzip forge.1
+          gzip cast.1
+          gzip anvil.1
+          tar -czvf "ofac-list-${VERSION_NAME}.tar.gz" ofac-list.gz
+          echo "::set-output name=ofac-list::ofac-list-${VERSION_NAME}.tar.gz"
+        shell: bash
+
+      # Creates the release for this specific version
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ needs.prepare.outputs.release_name }}
+          tag_name: ${{ needs.prepare.outputs.tag_name }}
+          prerelease: ${{ env.IS_NIGHTLY }}
+          body: ${{ needs.prepare.outputs.changelog }}
+          files: |
+            ${{ steps.artifacts.outputs.file_name }}
+            ${{ steps.man.outputs.ofac_list }}
+
+      - name: Update nightly release
+        if: ${{ env.IS_NIGHTLY }}
+        uses: softprops/action-gh-release@v1
+        with:
+          name: 'Nightly'
+          tag_name: 'nightly'
+          prerelease: true
+          body: ${{ needs.prepare.outputs.changelog }}
+          files: |
+            ${{ steps.artifacts.outputs.file_name }}
+            ${{ steps.man.outputs.ofac_list }}
+  cleanup:
+    name: Release cleanup
+    runs-on: ubuntu-latest
+    needs: release
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      # Moves the `nightly` tag to `HEAD`
+      - name: Move nightly tag
+        if: ${{ env.IS_NIGHTLY }}
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const moveTag = require('./.github/scripts/move-tag.js')
+            await moveTag({ github, context }, 'nightly')
+      - name: Delete old nightlies
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const prunePrereleases = require('./.github/scripts/prune-prereleases.js')
+            await prunePrereleases({github, context})
