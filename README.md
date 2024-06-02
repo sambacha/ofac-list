@@ -1,7 +1,7 @@
 # OFAC Sanctioned Digital Currency Addresses
 
 Branch containing the 'sanctioned' Ethereum (and other Digital Currency assets)
-addresses from the [Specially Designated Nationals (SDN) list][1] of the US
+addresses from the [Specially Designated Nationals (SDN) list][^1] of the US
 Office of Foreign Asset Control[^1].
 
 > [!NOTE]     
