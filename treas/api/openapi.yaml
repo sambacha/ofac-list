@@ -1,0 +1,316 @@
+openapi: 3.0.0
+info:
+  title: OFAC Sanctions List Service API
+  description: This API allows users to retrieve and download OFAC sanctions list data, including entities, lists, files, and customized datasets.
+  version: 1.0.0
+servers:
+  - url: https://sanctionslistservice.ofac.treas.gov
+
+paths:
+  /entities:
+    get:
+      summary: Retrieve metadata for entities
+      description: Retrieve metadata related to a collection of entities. Optionally filter by list or program.
+      parameters:
+        - name: list
+          in: query
+          description: Sanctions list name to filter entities.
+          required: false
+          schema:
+            type: string
+        - name: program
+          in: query
+          description: Program name to filter entities.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A collection of entities.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entity'
+  /entities/{entity-id}:
+    get:
+      summary: Retrieve metadata for a specific entity
+      description: Retrieve metadata related to a specific entity by ID.
+      parameters:
+        - name: entity-id
+          in: path
+          required: true
+          description: The ID of the entity to retrieve.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: An entity's metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+  
+  /api/download/{filename}:
+    get:
+      summary: Download sanctions files
+      description: Download sanctions list files based on the provided filename.
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: The name of the file to download.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File downloaded.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /changes/latest:
+    get:
+      summary: Retrieve the latest sanctions list delta file
+      description: Retrieve the latest published sanctions list delta file in XML format.
+      responses:
+        '200':
+          description: Latest sanctions list delta file.
+          content:
+            application/xml:
+              schema:
+                type: string
+
+  /changes/{publication-id}:
+    get:
+      summary: Retrieve sanctions list delta file by publication ID
+      description: Retrieve a sanctions list delta file based on a unique publication ID.
+      parameters:
+        - name: publication-id
+          in: path
+          required: true
+          description: The unique ID of the publication.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sanctions list delta file.
+          content:
+            application/xml:
+              schema:
+                type: string
+
+  /changes/history/{year}:
+    get:
+      summary: Retrieve sanctions list changes by year
+      description: Retrieve a list of publications based on the specified year.
+      parameters:
+        - name: year
+          in: path
+          required: true
+          description: The year of the sanctions list changes.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sanctions list changes for the specified year.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Publication'
+
+  /changes/history/{year}/{month}/{day}:
+    get:
+      summary: Retrieve sanctions list changes by year, month, and day
+      description: Retrieve a list of publications based on the specified year, month, and day.
+      parameters:
+        - name: year
+          in: path
+          required: true
+          description: The year of the sanctions list changes.
+          schema:
+            type: string
+        - name: month
+          in: path
+          required: true
+          description: The month of the sanctions list changes.
+          schema:
+            type: string
+        - name: day
+          in: path
+          required: true
+          description: The day of the sanctions list changes.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sanctions list changes for the specified year, month, and day.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Publication'
+
+  /sanctions-lists:
+    get:
+      summary: Retrieve all sanctions lists
+      description: Retrieve a list of all available sanctions lists.
+      responses:
+        '200':
+          description: A list of sanctions lists.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /sanctions-programs:
+    get:
+      summary: Retrieve all sanctions programs
+      description: Retrieve a list of all available sanctions programs.
+      responses:
+        '200':
+          description: A list of sanctions programs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /api/Customize/GetCustomizeList:
+    get:
+      summary: Retrieve customized sanctions list
+      description: Retrieve a customized sanctions list based on the provided parameters of publication date and list type.
+      parameters:
+        - name: publicationDate
+          in: query
+          description: The date of the publication.
+          schema:
+            type: string
+            format: date
+        - name: listType
+          in: query
+          description: The type of sanctions list (SDN or CONS).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A customized sanctions list.
+          content:
+            application/xml:
+              schema:
+                type: string
+
+  /alive:
+    get:
+      summary: API health check
+      description: Provides a health status check of the Sanctions List API.
+      responses:
+        '200':
+          description: Health status.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    Entity:
+      type: object
+      properties:
+        entityId:
+          type: string
+        identityId:
+          type: string
+        entityType:
+          type: string
+        sanctionsLists:
+          type: array
+          items:
+            type: object
+            properties:
+              refId:
+                type: string
+              id:
+                type: string
+              datePublished:
+                type: string
+                format: date
+        sanctionsPrograms:
+          type: array
+          items:
+            type: object
+            properties:
+              refId:
+                type: string
+              id:
+                type: string
+        sanctionsTypes:
+          type: array
+          items:
+            type: object
+            properties:
+              refId:
+                type: string
+              id:
+                type: string
+        legalAuthorities:
+          type: array
+          items:
+            type: object
+            properties:
+              refId:
+                type: string
+              id:
+                type: string
+        names:
+          type: array
+          items:
+            type: object
+            properties:
+              isPrimary:
+                type: boolean
+              formattedFullName:
+                type: string
+        addresses:
+          type: array
+          items:
+            type: object
+            properties:
+              country:
+                type: string
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              value:
+                type: string
+              valueDate:
+                type: object
+                properties:
+                  fromDateBegin:
+                    type: string
+                    format: date
+                  toDateEnd:
+                    type: string
+                    format: date
+
+    Publication:
+      type: object
+      properties:
+        publicationID:
+          type: string
+        datePublished:
+          type: string
+          format: date-time
